@@ -1,5 +1,6 @@
 package com.inmobiliaria.dao;
 
+import com.inmobiliaria.modelo.Usuario;
 import com.inmobiliaria.util.ConexionBD;
 import org.mindrot.jbcrypt.BCrypt;
 
@@ -8,10 +9,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 public class UsuarioDAO {
 
-    // ID del rol "Cliente" según tu tabla rol (revisa que coincida con tu INSERT INTO rol)
     private static final int ROL_CLIENTE = 2;
 
     public void registrarUsuario(String correo, String passwordPlano, String nombres,
@@ -24,9 +26,8 @@ public class UsuarioDAO {
 
         try {
             con = ConexionBD.obtenerConexion();
-            con.setAutoCommit(false); // Iniciamos la transacción manual
+            con.setAutoCommit(false);
 
-            // 1. Insertar en 'usuario'
             int idUsuarioGenerado;
             String sqlUsuario = "INSERT INTO usuario (correo, contrasena_hash) VALUES (?, ?)";
             try (PreparedStatement ps = con.prepareStatement(sqlUsuario, Statement.RETURN_GENERATED_KEYS)) {
@@ -40,7 +41,6 @@ public class UsuarioDAO {
                 }
             }
 
-            // 2. Insertar en 'perfil'
             String sqlPerfil = "INSERT INTO perfil (id_usuario, nombres, apellidos, documento, telefono, direccion) VALUES (?, ?, ?, ?, ?, ?)";
             try (PreparedStatement ps = con.prepareStatement(sqlPerfil)) {
                 ps.setInt(1, idUsuarioGenerado);
@@ -52,7 +52,6 @@ public class UsuarioDAO {
                 ps.executeUpdate();
             }
 
-            // 3. Insertar en 'usuario_rol' (rol Cliente por defecto)
             String sqlRol = "INSERT INTO usuario_rol (id_usuario, id_rol) VALUES (?, ?)";
             try (PreparedStatement ps = con.prepareStatement(sqlRol)) {
                 ps.setInt(1, idUsuarioGenerado);
@@ -60,19 +59,18 @@ public class UsuarioDAO {
                 ps.executeUpdate();
             }
 
-            con.commit(); // Todo salió bien, confirmamos los 3 INSERT juntos
+            con.commit();
 
         } catch (SQLException e) {
-            if (con != null) con.rollback(); // Algo falló, deshacemos todo
+            if (con != null) con.rollback();
 
-            // Detectamos si el error es por un UNIQUE duplicado
             String mensaje = e.getMessage();
             if (mensaje.contains("correo")) {
                 throw new CorreoDuplicadoException("El correo ya se encuentra registrado");
             } else if (mensaje.contains("documento")) {
                 throw new DocumentoDuplicadoException("El documento ya se encuentra registrado");
             }
-            throw e; // Si es otro tipo de error, lo dejamos pasar
+            throw e;
 
         } finally {
             if (con != null) {
@@ -80,5 +78,60 @@ public class UsuarioDAO {
                 con.close();
             }
         }
+    }
+
+    public Usuario autenticar(String correo, String passwordPlano) throws SQLException {
+        String sql = "SELECT u.id_usuario, u.contrasena_hash, u.estado, p.nombres, p.apellidos "
+                   + "FROM usuario u "
+                   + "INNER JOIN perfil p ON u.id_usuario = p.id_usuario "
+                   + "WHERE u.correo = ?";
+
+        try (Connection con = ConexionBD.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, correo);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return null;
+                }
+
+                String hashGuardado = rs.getString("contrasena_hash");
+
+                if (!BCrypt.checkpw(passwordPlano, hashGuardado)) {
+                    return null;
+                }
+
+                if ("inactivo".equals(rs.getString("estado"))) {
+                    throw new SQLException("CUENTA_INACTIVA");
+                }
+
+                Usuario usuario = new Usuario();
+                usuario.setIdUsuario(rs.getInt("id_usuario"));
+                usuario.setCorreo(correo);
+                usuario.setNombres(rs.getString("nombres"));
+                usuario.setApellidos(rs.getString("apellidos"));
+                usuario.setRoles(obtenerRoles(rs.getInt("id_usuario"), con));
+
+                return usuario;
+            }
+        }
+    }
+
+    private List<String> obtenerRoles(int idUsuario, Connection con) throws SQLException {
+        List<String> roles = new ArrayList<>();
+        String sql = "SELECT r.nombre_rol FROM rol r "
+                   + "INNER JOIN usuario_rol ur ON r.id_rol = ur.id_rol "
+                   + "WHERE ur.id_usuario = ?";
+
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, idUsuario);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    roles.add(rs.getString("nombre_rol"));
+                }
+            }
+        }
+        return roles;
     }
 }
