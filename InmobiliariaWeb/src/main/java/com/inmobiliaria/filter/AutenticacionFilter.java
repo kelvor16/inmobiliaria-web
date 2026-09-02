@@ -52,9 +52,12 @@ public class AutenticacionFilter implements Filter {
             return;
         }
 
-        if (ruta.equals("/dashboard-inmobiliaria.jsp") && !usuario.tieneRol("Inmobiliaria")) {
-            response.sendRedirect(contextPath + "/acceso-denegado.jsp");
-            return;
+        if ((ruta.equals("/dashboard-inmobiliaria.jsp")
+        	     || ruta.equals("/propiedad-form.jsp")
+        	     || ruta.equals("/PropiedadServlet"))
+        	    && !usuario.tieneRol("Inmobiliaria")) {
+        	    response.sendRedirect(contextPath + "/acceso-denegado.jsp");
+        	    return;
         }
 
         // Todo bien: dejamos continuar la petición
