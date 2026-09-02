@@ -1,4 +1,18 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
+<%@ page import="com.inmobiliaria.dao.PropiedadDAO" %>
+<%@ page import="com.inmobiliaria.modelo.Propiedad" %>
+<%@ page import="java.util.List" %>
+<%
+    List<Propiedad> propiedadesDestacadas;
+    try {
+        propiedadesDestacadas = new PropiedadDAO().listarDestacadas(6);
+    } catch (Exception e) {
+        propiedadesDestacadas = new java.util.ArrayList<>();
+    }
+    request.setAttribute("propiedades", propiedadesDestacadas);
+%>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -65,41 +79,37 @@
   <h2 class="text-center mb-4">Propiedades Destacadas</h2>
   <div class="row g-4">
 
-    <div class="col-md-4">
-      <div class="card h-100 shadow-sm">
-        <div class="card-img-top bg-secondary" style="height: 200px;"></div>
-        <div class="card-body">
-          <h5 class="card-title">Apartamento moderno centro</h5>
-          <p class="card-text text-muted">Bucaramanga · Apartamento</p>
-          <p class="card-text fw-bold fs-5">$280.000.000</p>
-          <a href="#" class="btn btn-outline-primary w-100">Ver detalle</a>
+    <c:choose>
+      <c:when test="${empty propiedades}">
+        <div class="col-12 text-center text-muted">
+          <p>Aún no hay propiedades publicadas.</p>
         </div>
-      </div>
-    </div>
-
-    <div class="col-md-4">
-      <div class="card h-100 shadow-sm">
-        <div class="card-img-top bg-secondary" style="height: 200px;"></div>
-        <div class="card-body">
-          <h5 class="card-title">Casa campestre con jardín</h5>
-          <p class="card-text text-muted">Bucaramanga · Casa</p>
-          <p class="card-text fw-bold fs-5">$450.000.000</p>
-          <a href="#" class="btn btn-outline-primary w-100">Ver detalle</a>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-4">
-      <div class="card h-100 shadow-sm">
-        <div class="card-img-top bg-secondary" style="height: 200px;"></div>
-        <div class="card-body">
-          <h5 class="card-title">Local comercial esquinero</h5>
-          <p class="card-text text-muted">Floridablanca · Local Comercial</p>
-          <p class="card-text fw-bold fs-5">$320.000.000</p>
-          <a href="#" class="btn btn-outline-primary w-100">Ver detalle</a>
-        </div>
-      </div>
-    </div>
+      </c:when>
+      <c:otherwise>
+        <c:forEach var="prop" items="${propiedades}">
+          <div class="col-md-4">
+            <div class="card h-100 shadow-sm">
+              <c:choose>
+                <c:when test="${not empty prop.imagenPrincipal}">
+                  <img src="${prop.imagenPrincipal}" class="card-img-top" style="height: 200px; object-fit: cover;">
+                </c:when>
+                <c:otherwise>
+                  <div class="card-img-top bg-secondary" style="height: 200px;"></div>
+                </c:otherwise>
+              </c:choose>
+              <div class="card-body">
+                <h5 class="card-title">${prop.titulo}</h5>
+                <p class="card-text text-muted">${prop.nombreCiudad} · ${prop.nombreTipo}</p>
+                <p class="card-text fw-bold fs-5">
+                  <fmt:formatNumber value="${prop.precio}" type="currency" currencySymbol="$" maxFractionDigits="0"/>
+                </p>
+                <a href="detalle-propiedad.jsp?id=${prop.idPropiedad}" class="btn btn-outline-primary w-100">Ver detalle</a>
+              </div>
+            </div>
+          </div>
+        </c:forEach>
+      </c:otherwise>
+    </c:choose>
 
   </div>
 </div>

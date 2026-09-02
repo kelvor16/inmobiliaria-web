@@ -33,6 +33,7 @@ public class AutenticacionFilter implements Filter {
         if (esRutaPublica(ruta)) {
             chain.doFilter(req, res);
             return;
+            
         }
 
         // 2. Revisamos si hay sesión activa
@@ -68,6 +69,7 @@ public class AutenticacionFilter implements Filter {
             || ruta.equals("/LoginServlet")
             || ruta.equals("/RegistroServlet")
             || ruta.equals("/acceso-denegado.jsp")
+            || ruta.equals("/detalle-propiedad.jsp")
             || ruta.startsWith("/META-INF")
             || ruta.startsWith("/WEB-INF");
     }
